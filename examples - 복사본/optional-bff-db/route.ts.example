@@ -1,0 +1,39 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+
+import { prisma } from "@/server/db/prisma";
+
+const createLocalDraftSchema = z.object({
+  title: z.string().trim().min(1).max(100),
+  note: z.string().trim().max(500).optional()
+});
+
+export async function GET() {
+  const drafts = await prisma.localDraft.findMany({
+    orderBy: { createdAt: "desc" },
+    take: 20
+  });
+
+  return NextResponse.json({ drafts });
+}
+
+export async function POST(request: Request) {
+  const body = await request.json().catch(() => null);
+  const result = createLocalDraftSchema.safeParse(body);
+
+  if (!result.success) {
+    return NextResponse.json(
+      { error: "INVALID_REQUEST", issues: result.error.flatten().fieldErrors },
+      { status: 400 }
+    );
+  }
+
+  const draft = await prisma.localDraft.create({
+    data: {
+      title: result.data.title,
+      note: result.data.note
+    }
+  });
+
+  return NextResponse.json({ draft }, { status: 201 });
+}
